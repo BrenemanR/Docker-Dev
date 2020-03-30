@@ -1,0 +1,13 @@
+image:
+  repository: docker-local.artifactory.ameren.com/gcr.io/forgerock-io/openidm
+  #repository: gcr.io/engineering-devops/openidm
+  tag: 6.5.1
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+config:
+  name: frconfig
+  #path: /git/config/6.5/m-cluster/idm/ds-repo-explicit
+  path: /git/config/6.5/default/idm/sync-with-ldap-bidirectional
+  strategy: git

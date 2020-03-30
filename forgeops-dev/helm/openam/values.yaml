@@ -1,0 +1,148 @@
+# Default values for openam runtime chart
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into the templates.
+
+component: openam
+
+image:
+  repository: docker-local.artifactory.ameren.com/gcr.io/forgerock-io/openam
+  tag: 6.5.1
+  # For development we set this to Always to get the most current image:
+  pullPolicy: IfNotPresent
+
+gitImage:
+  repository: docker-local.artifactory.ameren.com/gcr.io/forgerock-io/git
+  tag: 6.5.1
+  pullPolicy: IfNotPresent
+
+utilImage:
+  repository: docker-local.artifactory.ameren.com/gcr.io/forgerock-io/util
+  tag: 6.5.1
+  pullPolicy: Always
+
+domain: .ameren.com
+
+config:
+  name: frconfig
+  strategy: git
+
+openamReplicaCount: 1
+
+openamInstance: http://openam:80
+
+configLdapPort:  1389
+configLdapHost: configstore-0.configstore
+
+
+# This option:
+#  -Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true \
+# is disabled to avoid http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2007-0450
+# This may impact amster imports for some configurations (SAML entities)
+# If you need to renable this for amster, it should be disabled after the import is complete
+
+catalinaOpts: >
+  -server -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap
+  -Dcom.sun.identity.util.debug.provider=com.sun.identity.shared.debug.impl.StdOutDebugProvider
+  -Dcom.sun.identity.shared.debug.file.format='%PREFIX% %MSG%\\n%STACKTRACE%'
+  -Dcom.iplanet.services.stats.state=off
+
+# For visualVM debug, you can add this to the above:
+#-Dcom.sun.management.jmxremote.port=<port>
+#-Dcom.sun.management.jmxremote.authenticate=false
+#-Dcom.sun.management.jmxremote.ssl=false
+#-Dcom.sun.management.jmxremote.rmi.port=<port>
+#-Djava.rmi.server.hostname=$HOST_HOSTNAME
+
+
+# To use a tomcat web.xml from a k8s config map instead of the one built into the container, set the following to true.
+useConfigMapWebxml: false
+
+# Suffix for DS config store.
+rootSuffix:  "ou=am-config"
+
+# Valid logger types: fluent-bit, none
+# For audit logs it is suggested you configure AM to send directly to ElasticSearch.
+logDriver: none
+
+# The defaults below are small and OK for testing.
+# For production you wil want to set CPU limits to help Kube Schedule the pods.
+resources:
+ limits:
+   memory: 1300Mi
+ requests:
+   memory: 1200Mi
+
+# Set to true to create a boot.json file to bootstrap AM. If set to false, AM will come up to the configurator page.
+createBootstrap: true
+
+# This is an optional path to a script to execute before AM starts up. It can copy in images, update the web.xml, etc.
+# If you change set it to the full path to your cloned configuration.  Example: /git/config/default/6.5/my-openam/custom.sh
+amCustomizationScriptPath: "customize-am.sh"
+
+# Liveness probe tuning - time in seconds
+livenessPeriod: 60
+livenessTimeout: 15
+
+# If useDefaultSecrets is set to true (the default), the secret values in templates/secrets will be used 
+# to create the secrets openam-keys and openam-keystore-passwords. If you set useDefaultSecrets to false, 
+# you must create these secrets yourself. This allows you to inject your own secrets rather than use the 
+# default ones bundled in the chart. An alternate strategy is to fork this chart and replace the secrets 
+# in templates/secrets with your own.
+useDefaultSecrets: true
+
+service:
+  name: openam
+  #type: NodePort
+  type: ClusterIP
+  externalPort: 80
+  internalPort: 8080
+
+ingress:
+  class: nginx
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    #nginx.ingress.kubernetes.io/cors-allow-origin: "https://beep-dev.ameren.com"
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "route"
+    nginx.ingress.kubernetes.io/session-cookie-hash: "sha1"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    #nginx.ingress.kubernetes.io/enable-cors: "true"
+    #nginx.ingress.kubernetes.io/cors-allow-methods: "PUT,GET,POST,HEAD,PATCH,DELETE,OPTIONS"
+    #nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type,X-OpenIDM-OAuth-Login,X-OpenIDM-DataStoreToken,X-Requested-With,Cache-Control,Accept-Language,accept,Origin,Access-Control-Request-Method,Access-Control-Request-Headers,X-OpenAM-Username,X-OpenAM-Password,iPlanetDirectoryPro,Accept-API-Version,Authorization"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-max-age: "600"
+    nginx.ingress.kubernetes.io/rewrite-target: "/"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+     if ($http_origin ~* (^https?://([^/]+\.)*(localhost:4200|beep-dev.ameren.com|calculatemyenergy-dev.ameren.com|gp-dev.ameren.com))) {
+      set $allow_origin $http_origin;
+      more_set_headers 'Access-Control-Allow-Origin: $allow_origin';
+      add_header 'Access-Control-Allow-Methods' 'PUT,GET,POST,HEAD,PATCH,DELETE,OPTIONS';
+      add_header 'Access-Control-Allow-Headers' 'Content-Type,X-OpenIDM-OAuth-Login,X-OpenIDM-DataStoreToken,X-Requested-With,Cache-Control,Accept-Language,accept,Origin,Access-Control-Request-Method,Access-Control-Request-Headers,X-OpenAM-Username,X-OpenAM-Password,iPlanetDirectoryPro,CIAMSSOCookie,Accept-API-Version,Authorization';
+     }
+
+# Audit log details for log streaming sidecar containers.
+# AM can now stream audit logs to stdout. This option may be removed in the future.
+auditLogs: []
+
+# auditLogs:
+#   - name: access-logs
+#     path: "/home/forgerock/openam/openam/log/access.audit.json"
+#   - name: activity-logs
+#     path: "/home/forgerock/openam/openam/log/activity.audit.json"
+#   - name: authentication-logs
+#     path: "/home/forgerock/openam/openam/log/authentication.audit.json"
+#   - name: config-logs
+#     path: "/home/forgerock/openam/openam/log/config.audit.json"
+
+# Pod Anti Affinity switch. For production this should be set to "hard", otherwise use "soft" or leave empty.
+# The hard setting will force openam pods to be spread out over multiple hosts/zones. soft is best effort
+# but pods will still be scheduled together if sufficient resources are not available. Setting "none" or any other
+# value will result in no affinity settings.
+podAntiAffinity: "none"
+
+# This is the exact value for TopologyKey. The other possible value is "failure-domain.beta.kubernetes.io/zone"
+# which will ensure that pod is scheduled on nodes in different zones thus allowing for HA across zones.
+# Note you want to leave this value as is if you are deploying a single zone cluster and change the values only
+# if you have a multi-zone cluster.
+topologyKey: "kubernetes.io/hostname"

@@ -1,0 +1,9 @@
+image:
+  #repository: gcr.io/engineering-devops/openam
+  repository: docker-local.artifactory.ameren.com/gcr.io/forgerock-io/openam
+  tag: 6.5.1
+  pullPolicy: Always
+
+useConfigMapWebxml: true
+
+amCustomizationScriptPath: /git/config/6.5/cdm/m-cluster/am/customize-am.sh

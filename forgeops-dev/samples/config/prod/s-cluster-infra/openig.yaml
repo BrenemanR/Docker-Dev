@@ -1,0 +1,12 @@
+image:
+ #repository: gcr.io/forgerock-io/openig
+  repository: docker-local.artifactory.ameren.com/gcr.io/forgerock-io/openig
+  tag: 6.5.1
+  pullPolicy: IfNotPresent
+
+config:
+  name: frconfig
+  path: /git/config/6.5/default/ig/basic-sample
+  strategy: git
+
+replicaCount: 1

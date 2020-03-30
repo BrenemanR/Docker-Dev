@@ -1,0 +1,4 @@
+postgresUser: openidm
+postgresPassword: openidm
+
+storageClassName: fast

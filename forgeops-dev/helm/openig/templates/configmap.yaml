@@ -1,0 +1,15 @@
+# Copyright (c) 2016-2018 ForgeRock AS. All rights reserved.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ default "files-ig" .Values.component  }}
+data:
+  web.xml: {{ (.Files.Get "configs/web.xml") .| quote }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.component }}-{{ .Release.Name }}
+data:
+  EA_RESUSER_ACCOUNT_NUMBER_ENDPOINT:  "{{ .Values.endpoint.eaResUserAccountNumberEndpoint }}"

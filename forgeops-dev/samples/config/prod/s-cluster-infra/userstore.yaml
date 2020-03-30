@@ -1,0 +1,22 @@
+image:
+  repository: docker-local.artifactory.ameren.com/gcr.io/forgerock-io/ds
+  #repository: gcr.io/engineering-devops/ds
+  tag: 6.5.1
+  pullPolicy: Always
+
+instance: userstore
+
+cts:
+  enabled: false
+
+storageClass: fast
+
+replicas: 1
+
+topologyKey: "failure-domain.beta.kubernetes.io/zone"
+
+podAntiAffinity: hard
+  
+# If existing database is found then restore is always skipped
+restore:
+  enabled: true

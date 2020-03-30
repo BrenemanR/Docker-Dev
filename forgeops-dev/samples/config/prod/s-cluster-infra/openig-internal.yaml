@@ -1,0 +1,25 @@
+image:
+ #repository: gcr.io/forgerock-io/openig
+  repository: docker-local.artifactory.ameren.com/gcr.io/forgerock-io/openig
+  tag: 6.5.1
+  pullPolicy: IfNotPresent
+
+config:
+  name: frconfig
+  path: /git/config/6.5/default/ig/ig-web
+  strategy: git
+
+replicaCount: 1
+
+
+# These are both used to form the FQDN for the load balancer.  See _helpers.tpl
+component: openig-internal
+
+service:
+  name: openig-internal
+  type: ClusterIP
+  externalPort: 80
+  internalPort: 8080
+
+secret:
+    name: openig-internal-secrets-env  

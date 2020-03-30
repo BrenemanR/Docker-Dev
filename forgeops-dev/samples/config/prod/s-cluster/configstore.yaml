@@ -1,0 +1,22 @@
+image:
+  repository: docker-local.artifactory.ameren.com/gcr.io/forgerock-io/ds
+  #repository: gcr.io/engineering-devops/ds
+  tag: 6.5.1
+  pullPolicy: Always
+
+instance: configstore
+
+cts:
+  enabled: false
+
+resources:
+  limits:
+    memory: 1Gi
+  requests:
+    memory: 1Gi
+
+replicas: 2
+
+topologyKey: "failure-domain.beta.kubernetes.io/zone"
+
+podAntiAffinity: hard

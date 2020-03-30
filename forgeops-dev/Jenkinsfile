@@ -1,0 +1,100 @@
+def getStatusFromBuildStatus() {
+
+  if (currentBuild.result == null || "SUCCESS" == currentBuild.result) {
+    return "SUCCESS"
+  } else if ("FAILED" == currentBuild.result) {
+    return "FAILURE"
+  } else {
+    return "ERROR"
+  }
+}
+
+node {
+  
+  def scmInfo = checkout scm
+  githubNotify account: 'EIAM', context: 'Build Status', credentialsId: 'jenkins-api-token',
+    description: 'This is an example', repo: 'forgeops', sha: "${scmInfo.GIT_COMMIT}", gitApiUrl: 'https://github.ameren.com/api/v3', targetUrl: "${env.RUN_DISPLAY_URL}", status: 'PENDING'
+  try {
+    podTemplate(){
+      node('ciamagentdev') {
+
+       
+      stage('Git Checkout') {
+       
+       checkout scm
+       
+       }
+       
+	stage("Modify AM Configurations") {
+	
+	sh "kubectl config use-context arn:aws:eks:us-east-1:719637372562:cluster/ciam-cluster"
+
+	sh "kubectl get pods -n ciam-dev | grep amster"
+	
+        sh '''podname=$(kubectl get pods -n ciam-dev --template '{{range .items}}{{.metadata.name}}{{"\\n"}}{{end}}' | grep amster)
+	      echo "my name is $podname"
+	      kubectl exec -it $podname -c amster -n ciam-dev -- ./export.sh
+	      kubectl exec -it $podname -c git -n ciam-dev -- sh /git/config/git-sync.sh ${developer}	      
+	   '''
+	 
+	   }
+	   
+	   
+	stage("Refresh the remote repo for forgeops-init") { 
+	
+		 checkout scm: [$class: 'GitSCM', branches: [[name: '*/dev']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'WipeWorkspace'], [$class: 'RelativeTargetDirectory', relativeTargetDir: 'forgeops-init']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'github', url: 'https://github.ameren.com/EIAM/forgeops-init.git']]]
+		 
+		 withCredentials([usernamePassword(credentialsId: 'github', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
+		 
+        sh '''
+	      cd forgeops-init
+	      git config user.name 'jenkins'
+              git config user.email 'jenkins@ameren.com'
+	      git config --local credential.helper "!f() { echo username=\\$GIT_USERNAME; echo password=\\$GIT_PASSWORD; }; f"
+	      sleep 30
+	      git remote set-url origin https://github.ameren.com/EIAM/forgeops-init.git
+	      git checkout dev
+	      git reset --hard origin/dev
+              git pull origin dev
+	      git checkout autosave-ciam-dev-${developer}
+	      git pull origin autosave-ciam-dev-${developer}
+	      git checkout dev
+	      git merge autosave-ciam-dev-${developer}
+	      git push origin dev
+	      podnameam=$(kubectl get pods -n ciam-dev --template '{{range .items}}{{.metadata.name}}{{"\\n"}}{{end}}' | grep openam)
+	      kubectl delete pod $podnameam -n ciam-dev
+	      sleep 60
+	      kubectl get pods -n ciam-dev
+	   '''
+	   		 	
+	}
+	}
+	
+		}
+       
+      }
+    }
+  catch (e) {
+    // If there was an exception thrown, the build failed
+    currentBuild.result = "FAILED"
+    throw e
+  } finally {
+    // Success or failure, always send notifications
+    notifyBuild(currentBuild.result)
+    githubNotify account: 'EIAM', context: 'Build Status', credentialsId: 'jenkins-api-token',
+      description: 'This is an example', repo: 'forgeops', sha: "${scmInfo.GIT_COMMIT}", gitApiUrl: 'https://github.ameren.com/api/v3', targetUrl: "${env.RUN_DISPLAY_URL}", status: getStatusFromBuildStatus()
+  }
+}
+
+def notifyBuild(String buildStatus = 'STARTED') {
+  // build status of null means successful
+  buildStatus = buildStatus ?: 'SUCCESSFUL'
+
+  // Default values
+
+def subject = "${buildStatus}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'"
+  // Send notifications
+  emailext(
+    body: '''${SCRIPT, template="groovy-text.template"}''', replyTo: 'uchaudhary@ameren.com, RBreneman@ameren.com, JDu@ameren.com', subject: subject, to: 'uchaudhary@ameren.com, RBreneman@ameren.com, JDu@ameren.com'
+  )
+}
