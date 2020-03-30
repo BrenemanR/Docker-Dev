@@ -20,10 +20,10 @@ RUN apk add --update \
 # Example - Copy your desired artifacts to this folder then add them to the image. Put them in the root to mimic the functionality 
 # of the ../downloader image.
 COPY openam.war /
-COPY openidm.zip /
-COPY openig.war /
-COPY opendj.zip /
-COPY amster.zip /
+# COPY openidm.zip /
+# COPY openig.war /
+# COPY opendj.zip /
+# COPY amster.zip /
 
 # See the download script - you will need to edit this to mimic the 
 COPY download /usr/bin/
